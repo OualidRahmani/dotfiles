@@ -1,4 +1,4 @@
-from libqtile import bar, layout, widget, hook
+from libqtile import bar, layout, widget, hook, qtile
 from libqtile.config import Click, Drag, Group, Key, Match, Screen
 from libqtile.lazy import lazy
 import subprocess
@@ -87,8 +87,13 @@ groups = [Group(i) for i in "123456789"]
 
 for i in groups:
     keys.extend([
-        Key([mod], i.name, lazy.group[i.name].toscreen()),
-        Key([mod, "shift"], i.name, lazy.window.togroup(i.name, switch_group=True)),
+        Key([mod], i.name, 
+            lazy.group[i.name].toscreen(),
+            desc=f"Switch to group {i.name}"),
+            
+        Key([mod, "shift"], i.name, 
+            lazy.window.togroup(i.name, switch_group=True),
+            desc="Move focused window to group " + i.name),
     ])
 
 # Dynamic Theme Loading
@@ -129,8 +134,9 @@ layouts = [
 floating_layout = layout.Floating(
     float_rules=[
         *layout.Floating.default_float_rules,
-        Match(wm_class="SysPopup"), # This matches the title/class we set in Tkinter
+        Match(wm_class="SysPopup"),
         Match(wm_class="PowerMenu"),
+        Match(wm_class="WSHud"),
     ]
 )
 
@@ -249,3 +255,10 @@ reconfigure_screens = True
 auto_minimize = True
 wl_input_rules = None
 wmname = "LG3D"
+
+@hook.subscribe.setgroup
+def group_changed():
+    # Get the name of the current group
+    group_name = qtile.current_group.name
+    # Spawn the HUD
+    subprocess.Popen([os.path.expanduser("~/.local/bin/ws_hud"), group_name])
