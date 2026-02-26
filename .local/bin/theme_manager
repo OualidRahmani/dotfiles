@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+import tkinter as tk
+from tkinter import colorchooser
+import json
+import os
+import subprocess
+import time
+
+# Output paths
+THEME_JSON = os.path.expanduser("~/.config/qtile_theme.json")
+NVIM_LUA_DIR = os.path.expanduser("~/.config/nvim/lua")
+NVIM_LUA = os.path.join(NVIM_LUA_DIR, "qtile_theme.lua")
+ULAUNCHER_THEME_DIR = os.path.expanduser("~/.config/ulauncher/user-themes/ouali-theme")
+ULAUNCHER_CSS = os.path.join(ULAUNCHER_THEME_DIR, "theme.css")
+
+# Default starting colors (Catppuccin base)
+colors = {
+    "bg":      "#1e1e2e",
+    "fg":      "#cdd6f4",
+    "surface": "#313244",
+    "blue":    "#89b4fa",
+    "green":   "#a6e3a1",
+    "red":     "#f38ba8",
+    "yellow":  "#f9e2af",
+    "mauve":   "#cba6f7",
+}
+
+# Try to load existing theme if it exists
+if os.path.exists(THEME_JSON):
+    with open(THEME_JSON, "r") as f:
+        colors.update(json.load(f))
+
+def pick_color(key, button):
+    # Open color picker
+    color_code = colorchooser.askcolor(title=f"Choose color for {key}", initialcolor=colors[key])[1]
+    if color_code:
+        colors[key] = color_code
+        button.config(bg=color_code)
+
+def apply_theme():
+    # 1. Save JSON for Qtile
+    with open(THEME_JSON, "w") as f:
+        json.dump(colors, f, indent=4)
+    
+    # 2. Save Lua table for Neovim
+    os.makedirs(NVIM_LUA_DIR, exist_ok=True)
+    with open(NVIM_LUA, "w") as f:
+        f.write("return {\n")
+        for k, v in colors.items():
+            f.write(f'  {k} = "{v}",\n')
+        f.write("}\n")
+    
+    # 3. Save CSS and Manifest for Ulauncher
+    os.makedirs(ULAUNCHER_THEME_DIR, exist_ok=True)
+    
+    manifest_path = os.path.join(ULAUNCHER_THEME_DIR, "manifest.json")
+    manifest_data = {
+        "manifest_version": "1",
+        "name": "ouali-theme",
+        "display_name": "Ouali Dynamic Theme",
+        "extend_theme": "dark",
+        "css_file": "theme.css",
+        "css_file_gtk_3.20+": "theme.css",
+        "matched_text_hl_colors": {
+            "when_selected": colors['green'],
+            "when_not_selected": colors['blue']
+        }
+    }
+    with open(manifest_path, "w") as f:
+        json.dump(manifest_data, f, indent=4)
+
+    css_content = f"""
+    .app {{ background-color: {colors['bg']}; border-radius: 12px; padding: 8px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5); }}
+    .input {{ color: {colors['fg']}; background-color: {colors['bg']}; font-size: 18px; border: 2px solid {colors['surface']}; border-radius: 8px; padding: 10px; margin-bottom: 8px; }}
+    .input:focus {{ border-color: {colors['blue']}; }}
+    .result-item {{ padding: 8px; border-radius: 8px; color: {colors['fg']}; }}
+    .result-item.selected {{ background-color: {colors['surface']}; border-left: 4px solid {colors['blue']}; }}
+    .result-item .title {{ color: {colors['fg']}; font-weight: bold; }}
+    .result-item .description {{ color: {colors['surface']}; }}
+    """
+    with open(ULAUNCHER_CSS, "w") as f:
+        f.write(css_content)
+
+    # 4. Save config for xfce4-terminal (Using modern xfconf-query)
+    palette = f"{colors['surface']};{colors['red']};{colors['green']};{colors['yellow']};{colors['blue']};{colors['mauve']};{colors['blue']};{colors['fg']};" + \
+              f"{colors['surface']};{colors['red']};{colors['green']};{colors['yellow']};{colors['blue']};{colors['mauve']};{colors['blue']};{colors['fg']}"
+    
+    def set_xfconf(prop, value):
+        # We use -n (create) and -t string to ensure it sets properly even if missing
+        subprocess.run(["xfconf-query", "-c", "xfce4-terminal", "-p", prop, "-s", value, "-n", "-t", "string"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+    set_xfconf("/color-background", colors["bg"])
+    set_xfconf("/color-foreground", colors["fg"])
+    set_xfconf("/color-cursor", colors["blue"])
+    set_xfconf("/color-palette", palette)
+
+    # 5. Silently restart Ulauncher
+    subprocess.run(["pkill", "-f", "ulauncher"])
+    time.sleep(0.5)
+    subprocess.Popen(["ulauncher", "--hide-window"], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    # 6. Reload Qtile seamlessly
+    subprocess.run(["qtile", "cmd-obj", "-o", "cmd", "-f", "reload_config"])
+    print("Theme applied globally!")
+
+    # --- NEW: Update Fastfetch Colors ---
+    FASTFETCH_CONFIG = os.path.expanduser("~/.config/fastfetch/config.jsonc")
+    if os.path.exists(FASTFETCH_CONFIG):
+        with open(FASTFETCH_CONFIG, "r") as f:
+            ff_data = json.load(f)
+        
+        # Map your theme colors to fastfetch (stripping the # for hex compatibility if needed)
+        ff_data["display"]["color"]["keys"] = colors["mauve"]
+        ff_data["display"]["color"]["title"] = colors["blue"]
+        
+        with open(FASTFETCH_CONFIG, "w") as f:
+            json.dump(ff_data, f, indent=2)
+
+    # Overwrite Fastfetch data 
+    
+    ff_config_path = os.path.expanduser("~/.config/fastfetch/config.jsonc")
+    if os.path.exists(ff_config_path):
+        with open(ff_config_path, "r") as f:
+            ff_data = json.load(f)
+            
+        # Ensure the display/color section exists
+        if "display" not in ff_data: ff_data["display"] = {}
+        if "color" not in ff_data["display"]: ff_data["display"]["color"] = {}
+        
+        # Sync the keys/title to your Mauve/Blue or Red/Yellow!
+        ff_data["display"]["color"]["keys"] = colors["mauve"]
+        ff_data["display"]["color"]["title"] = colors["blue"]
+        
+        with open(ff_config_path, "w") as f:
+            json.dump(ff_data, f, indent=4)
+
+
+# Build the GUI
+root = tk.Tk()
+root.title("Theme Manager")
+root.geometry("300x450")
+root.configure(bg="#2b2b2b")
+
+tk.Label(root, text="System Colors", fg="white", bg="#2b2b2b", font=("JetBrains Mono", 16, "bold")).pack(pady=10)
+
+buttons_frame = tk.Frame(root, bg="#2b2b2b")
+buttons_frame.pack(fill="both", expand=True, padx=20)
+
+for key in colors:
+    row = tk.Frame(buttons_frame, bg="#2b2b2b")
+    row.pack(fill="x", pady=5)
+    
+    tk.Label(row, text=key.capitalize(), fg="white", bg="#2b2b2b", width=10, anchor="w", font=("JetBrains Mono", 10)).pack(side="left")
+    
+    btn = tk.Button(row, bg=colors[key], width=15, relief="flat", cursor="hand2")
+    btn.config(command=lambda k=key, b=btn: pick_color(k, b))
+    btn.pack(side="right")
+
+tk.Button(root, text="Apply & Reload", command=apply_theme, bg="#4CAF50", fg="white", font=("JetBrains Mono", 12, "bold"), relief="flat", pady=5).pack(pady=20, fill="x", padx=20)
+
+root.mainloop()
