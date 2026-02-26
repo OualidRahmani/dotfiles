@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Kill workspace wallpaper controller
+pkill -f workspace-wallpaper 2>/dev/null
+
+# Kill any running mpv wallpapers
+pkill -x xwinrap 2>/dev/null
+pkill -x mpv 2>/dev/null
+
+sleep 1
+
+# Relaunch controller fully detached
+setsid ~/.local/bin/workspace-wallpaper >/dev/null 2>&1 < /dev/null &
+

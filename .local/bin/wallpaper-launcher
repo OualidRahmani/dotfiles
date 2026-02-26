@@ -1,0 +1,26 @@
+#!/bin/bash
+
+sleep 2
+
+# Kill xfdesktop if running
+pkill -x xfdesktop 2>/dev/null
+pkill -x xwinwrap 2>/dev/null
+
+sleep 1
+
+VIDEO=$(ls "$HOME/Videos/current-wallpaper."* 2>/dev/null | head -n 1)
+
+if [ ! -f "$VIDEO" ]; then
+    echo "No wallpaper file found at $HOME/Videos/current-wallpaper.*" >&2
+    exit 1
+fi
+
+exec xwinwrap -fs -fdt -ni -b -nf -un -ov -o 1.0 -- bash -c 'mpv \
+--wid="$1" \
+--loop-file=inf \
+--no-audio \
+--vo=gpu \
+--hwdec=auto \
+--no-osc \
+--no-osd-bar \
+"$2"' _ WID "$VIDEO"

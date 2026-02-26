@@ -1,0 +1,85 @@
+#!/bin/bash
+
+sleep 2
+pkill -x xfdesktop 2>/dev/null
+
+get_workspace() {
+    xdotool get_desktop
+}
+
+
+#get_video_for_ws() {
+#    ws="$1"
+#    index=$((ws + 1))
+
+ #   match=$(ls "$HOME/Videos/current-wallpaper-${index}."* 2>/dev/null | head -n1)
+
+  #  if [ -n "$match" ]; then
+   #     echo "$match"
+    #    return
+    #fi
+
+    # fallback to workspace 1
+    #match=$(ls "$HOME/Videos/current-wallpaper-1."* 2>/dev/null | head -n1)
+
+    #if [ -n "$match" ]; then
+     #   echo "$match"
+    #fi
+#}
+
+get_video_for_ws() {
+    ws="$1"
+    index=$((ws + 1))
+
+    VIDEO=$(ls "$HOME/Videos/current-wallpaper-${index}."* 2>/dev/null | head -n 1)
+
+    echo "$VIDEO"
+}
+
+launch_wallpaper() {
+    VIDEO=$(get_video_for_ws "$1")
+
+    # If file doesn't exist, fallback to wallpaper-1
+    if [ ! -f "$VIDEO" ]; then
+        VIDEO=$(get_video_for_ws 0)
+    fi
+
+    # If fallback also doesn't exist, abort
+    if [ ! -f "$VIDEO" ]; then
+        echo "No wallpaper found for workspace $1 and no fallback available." >&2
+        return 1
+    fi
+
+    pkill -x xwinwrap 2>/dev/null
+    sleep 0.2
+
+    # xwinwrap creates the sticky background window and passes 'WID' to mpv
+    setsid xwinwrap -fs -fdt -ni -b -nf -un -ov -o 1.0 -- bash -c 'mpv \
+    --wid="$1" \
+    --loop-file=inf \
+    --image-display-duration=inf \
+    --no-audio \
+    --vo=gpu \
+    --hwdec=auto \
+    --panscan=1.0 \
+    --scale=ewa_lanczossharp \
+    --cscale=ewa_lanczossharp \
+    --no-osc \
+    --no-osd-bar \
+    "$2"' _ WID "$VIDEO" >/tmp/wallpaper.log 2>&1 &
+}
+
+current_ws=$(get_workspace)
+launch_wallpaper "$current_ws"
+last_ws="$current_ws"
+
+while true; do
+    new_ws=$(get_workspace)
+
+    if [ "$new_ws" != "$last_ws" ]; then
+        launch_wallpaper "$new_ws"
+        last_ws="$new_ws"
+    fi
+
+    sleep 0.4
+done
