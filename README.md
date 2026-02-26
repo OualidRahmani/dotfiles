@@ -14,10 +14,13 @@ A highly customized, ground-up Linux desktop environment built on **Qtile**. Thi
 All custom scripts are located in `~/.local/bin/` and are globally accessible from the terminal or Qtile keybinds.
 
 * **`sys_popup <mode>`**
-  * **What it does:** Spawns a lightweight, borderless Tkinter window with live hardware stats. Auto-closes on focus loss.
-  * **Usage:** Run `sys_popup cpu`, `sys_popup ram`, `sys_popup gpu`, or `sys_popup net`.
+  * **What it does:** Spawns a lightweight, borderless Tkinter window with live hardware stats. 
+  * **Usage:** `sys_popup cpu`, `sys_popup ram`, `sys_popup gpu`, or `sys_popup net`.
+* **`ws_hud`**
+  * **What it does:** A centered HUD overlay that flashes the current workspace name.
+  * **Automation:** Triggered automatically via Qtile hooks on every group change.
 * **`power_menu`**
-  * **What it does:** Opens a centralized, floating power control hub in the middle of the screen.
+  * **What it does:** Opens a centered, floating power control hub (Shutdown/Reboot/Logout).
 * **`theme_manager`**
   * **What it does:** GUI to instantly swap Qtile themes and update component colors.
 * **`fetchman`**
@@ -32,13 +35,15 @@ All custom scripts are located in `~/.local/bin/` and are globally accessible fr
 ### Custom "From Scratch" Features
 
 #### System & UI
+* **Dynamic Workspaces:** On-the-fly creation and deletion of workspaces using custom Qtile functions.
+* **Event-Driven HUD:** A reactive Python overlay that provides visual feedback for workspace navigation.
 * **Dynamic Theme Manager:** Instantly swaps Qtile themes, rewriting `qtile_theme.json` for live updates.
 * **Minimalist Power Menu:** Frameless UI featuring an auto-inverting contrast close button (`✕`).
 * **Tkinter System Popups:**
   * **CPU:** Live per-core frequency, load, and performance/powersave governors.
   * **RAM:** Live usage statistics and a real-time feed of the Top 5 memory-heavy processes.
   * **GPU:** Live temperature, VRAM, and power draw metrics (nvidia-smi).
-  * **Network:** Real-time, mathematically calculated upload/download throughput.
+  * **Network:** Real-time, mathematically calculated throughput.
 
 #### Environment
 * **Terminal Engine:** Integrated Fastfetch with isolated asset management in `~/Pictures/fastfetch`.
