@@ -1,4 +1,4 @@
-from libqtile import bar, layout, widget, hook, qtile
+from libqtile import bar, layout, widget, hook, qtile, extension
 from libqtile.config import Click, Drag, Group, Key, Match, Screen
 from libqtile.lazy import lazy
 import subprocess
@@ -83,6 +83,34 @@ keys = [
 ]
 
 # Workspaces
+
+def add_group(qtile):
+    def cb(text):
+        if text:
+            qtile.add_group(text)
+            # Switch to it immediately
+            qtile.groups_map[text].toscreen()
+    
+    # This opens a small prompt at the top of the screen
+    qtile.cmd_spawn_extension(extension.CommandSet(
+        commands={
+            "Create Workspace": "echo",
+        },
+        pre_commands=["Enter Workspace Name: "],
+        callback=cb
+    ))
+
+def delete_group(qtile):
+    group = qtile.current_group
+    if group.name not in "123456789": # Prevent deleting the main 9
+        qtile.del_group(group.name)
+
+keys.extend([
+    Key([mod, "control"], "n", lazy.function(add_group), desc="Create new workspace"),
+    Key([mod, "control"], "x", lazy.function(delete_group), desc="Delete current workspace"),
+])
+
+
 groups = [Group(i) for i in "123456789"]
 
 for i in groups:
@@ -161,6 +189,8 @@ screens = [
                     this_current_screen_border=colors["blue"],
                     urgent_border=colors["red"],
                     padding=6,
+                    visible_groups=None, # This ensures ALL groups (even new ones) show up
+                    hide_unused=True,    # This keeps it clean—dynamic groups only show if active
                 ),
                 widget.Prompt(),
                 widget.WindowName(foreground=colors["mauve"]),
