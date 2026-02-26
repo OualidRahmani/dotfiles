@@ -52,3 +52,4 @@ All custom scripts are located in `~/.local/bin/` and are globally accessible fr
 git clone --bare [https://github.com/OualidRahmani/dotfiles.git](https://github.com/OualidRahmani/dotfiles.git) $HOME/.dotfiles
 alias dotconfig='/usr/bin/git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
 dotconfig checkout
+
