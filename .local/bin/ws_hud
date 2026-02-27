@@ -4,37 +4,35 @@ import sys
 import os
 import json
 
-# Load theme
+# ── Theme ─────────────────────────────────────────────────────────────────────
+
 THEME_JSON = os.path.expanduser("~/.config/qtile_theme.json")
-with open(THEME_JSON, "r") as f:
+with open(THEME_JSON) as f:
     colors = json.load(f)
+
+# ── UI ────────────────────────────────────────────────────────────────────────
 
 ws_name = sys.argv[1] if len(sys.argv) > 1 else "?"
 
+W, H = 280, 140
 root = tk.Tk()
 root.title("WSHud")
 root.overrideredirect(True)
-root.attributes('-topmost', True)
-root.attributes('-type', 'notification') # Makes it behave like an overlay
-root.configure(bg=colors['bg'])
+root.attributes("-topmost", True)
+root.attributes("-type", "notification")
+root.attributes("-alpha", 0.4)
+root.configure(
+    bg=colors["bg"],
+    highlightbackground=colors["surface"],
+    highlightthickness=4,
+)
+root.geometry(f"{W}x{H}+{(1920 - W) // 2}+{(1080 - H) // 2}")
 
-# Center it
-w, h = 280, 140
-screen_w = 1920
-screen_h = 1080
-root.geometry(f"{w}x{h}+{(screen_w-w)//2}+{(screen_h-h)//2}")
+tk.Label(
+    root, text=f" {ws_name} ",
+    fg=colors["blue"], bg=colors["bg"],
+    font=("JetBrains Mono", 48, "bold"),
+).pack(expand=True)
 
-# Styling
-label = tk.Label(root, text=f" {ws_name} ",
-                fg=colors['blue'], bg=colors['bg'], 
-                font=("JetBrains Mono", 48, "bold"))
-label.pack(expand=True)
-
-# Add a subtle border in your theme's surface color
-root.configure(highlightbackground=colors['surface'], highlightthickness=4)
-
-# Self-destruct after 800ms
 root.after(800, root.destroy)
-root.overrideredirect(True) 
-root.attributes("-alpha", 0.4) 
 root.mainloop()

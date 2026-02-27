@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# This tells i3lock-color to take a screenshot of your current desktop 
+# (including the video frame) and apply a Gaussian blur of 15.
+i3lock \
+  --blur 15 \
+  --indicator \
+  --clock \
+  --time-color=cdd6f4ff \
+  --date-color=cdd6f4ff \
+  --inside-color=1e1e2e88 \
+  --ring-color=89b4faff \
+  --ringver-color=a6e3a1ff \
+  --ringwrong-color=f38ba8ff \
+  --keyhl-color=a6e3a1ff \
+  --bshl-color=f38ba8ff \
+  --line-uses-inside \
+  --radius=120

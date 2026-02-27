@@ -3,89 +3,85 @@ import tkinter as tk
 import os
 import json
 
-# Load your dynamic colors
+# ── Theme ─────────────────────────────────────────────────────────────────────
+
 THEME_JSON = os.path.expanduser("~/.config/qtile_theme.json")
-with open(THEME_JSON, "r") as f:
+with open(THEME_JSON) as f:
     colors = json.load(f)
 
-# Function to mathematically invert a hex color
 def invert_hex(hex_color):
-    hex_color = hex_color.lstrip('#')
-    # Fallback just in case the hex is malformed
-    if len(hex_color) != 6:
-        return "#ffffff" 
-    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    h = hex_color.lstrip("#")
+    if len(h) != 6:
+        return "#ffffff"
+    r, g, b = (int(h[i:i+2], 16) for i in (0, 2, 4))
     return f"#{255-r:02x}{255-g:02x}{255-b:02x}"
 
-inverse_bg = invert_hex(colors['bg'])
+inverse_bg = invert_hex(colors["bg"])
 
-root = tk.Tk()
-root.title("PowerMenu") 
-root.overrideredirect(True)
-root.attributes('-topmost', True)
-root.configure(bg=colors['bg'], highlightbackground=colors['surface'], highlightthickness=2)
-
-# Perfectly center the window on your 1080p screen
-window_width = 300
-window_height = 220
-screen_width = 1920
-screen_height = 1080
-pos_x = (screen_width // 2) - (window_width // 2)
-pos_y = (screen_height // 2) - (window_height // 2)
-
-root.geometry(f"{window_width}x{window_height}+{pos_x}+{pos_y}")
+# ── Actions ───────────────────────────────────────────────────────────────────
 
 def execute(command):
-    if command == "shutdown":
-        os.system("shutdown now")
-    elif command == "reboot":
-        os.system("reboot")
-    elif command == "logout":
-        os.system("qtile cmd-obj -o cmd -f shutdown")
+    cmds = {
+        "shutdown": "shutdown now",
+        "reboot":   "reboot",
+        "logout":   "qtile cmd-obj -o cmd -f shutdown",
+    }
+    if command in cmds:
+        os.system(cmds[command])
     root.destroy()
 
-# --- UI Setup ---
-header = tk.Label(root, text="SYSTEM POWER", fg=colors['red'], bg=colors['bg'], font=("JetBrains Mono", 14, "bold"))
-header.pack(pady=15)
+# ── UI ────────────────────────────────────────────────────────────────────────
 
-# --- NEW: The Frameless, Inverted Close Label ---
-close_lbl = tk.Label(root, text="✕", bg=colors['bg'], fg=inverse_bg, font=("JetBrains Mono", 14, "bold"), cursor="hand2")
-close_lbl.place(x=window_width - 35, y=5, width=30, height=30)
+W, H = 300, 220
+root = tk.Tk()
+root.title("PowerMenu")
+root.overrideredirect(True)
+root.attributes("-topmost", True)
+root.configure(
+    bg=colors["bg"],
+    highlightbackground=colors["surface"],
+    highlightthickness=2,
+)
+root.geometry(f"{W}x{H}+{1920//2 - W//2}+{1080//2 - H//2}")
 
-# Hover effects (turns red on hover, goes back to inverted bg on leave)
-close_lbl.bind("<Enter>", lambda e: close_lbl.config(fg=colors['red']))
-close_lbl.bind("<Leave>", lambda e: close_lbl.config(fg=inverse_bg))
-# Act like a button on left click
-close_lbl.bind("<Button-1>", lambda e: root.destroy())
+tk.Label(
+    root, text="SYSTEM POWER",
+    fg=colors["red"], bg=colors["bg"],
+    font=("JetBrains Mono", 14, "bold"),
+).pack(pady=15)
 
-btn_frame = tk.Frame(root, bg=colors['bg'])
+# Close button
+close = tk.Label(root, text="✕", bg=colors["bg"], fg=inverse_bg,
+                 font=("JetBrains Mono", 14, "bold"), cursor="hand2")
+close.place(x=W - 35, y=5, width=30, height=30)
+close.bind("<Enter>",    lambda e: close.config(fg=colors["red"]))
+close.bind("<Leave>",    lambda e: close.config(fg=inverse_bg))
+close.bind("<Button-1>", lambda e: root.destroy())
+
+# Buttons
+btn_frame = tk.Frame(root, bg=colors["bg"])
 btn_frame.pack(fill="both", expand=True)
 
-# Hover effects for the main buttons
-def on_enter(e, btn, color): btn['bg'] = color
-def on_leave(e, btn): btn['bg'] = colors['surface']
+BUTTONS = [
+    ("Turn Off", colors["red"],    "shutdown"),
+    ("Reboot",   colors["yellow"], "reboot"),
+    ("Log Out",  colors["blue"],   "logout"),
+]
 
-# 1. Turn Off Button
-shutdown_btn = tk.Button(btn_frame, text="Turn Off", bg=colors['surface'], fg=colors['red'], activebackground=colors['red'], activeforeground=colors['bg'], font=("JetBrains Mono", 12, "bold"), relief="flat", cursor="hand2", command=lambda: execute("shutdown"))
-shutdown_btn.pack(fill="x", padx=40, pady=5)
-shutdown_btn.bind("<Enter>", lambda e: on_enter(e, shutdown_btn, colors['surface']))
-shutdown_btn.bind("<Leave>", lambda e: on_leave(e, shutdown_btn))
+for label, color, cmd in BUTTONS:
+    btn = tk.Button(
+        btn_frame, text=label,
+        bg=colors["surface"], fg=color,
+        activebackground=color, activeforeground=colors["bg"],
+        font=("JetBrains Mono", 12, "bold"),
+        relief="flat", cursor="hand2",
+        command=lambda c=cmd: execute(c),
+    )
+    btn.pack(fill="x", padx=40, pady=5)
+    btn.bind("<Enter>", lambda e, b=btn: b.config(bg=colors["surface"]))
+    btn.bind("<Leave>", lambda e, b=btn: b.config(bg=colors["surface"]))
 
-# 2. Reboot Button
-reboot_btn = tk.Button(btn_frame, text="Reboot", bg=colors['surface'], fg=colors['yellow'], activebackground=colors['yellow'], activeforeground=colors['bg'], font=("JetBrains Mono", 12, "bold"), relief="flat", cursor="hand2", command=lambda: execute("reboot"))
-reboot_btn.pack(fill="x", padx=40, pady=5)
-reboot_btn.bind("<Enter>", lambda e: on_enter(e, reboot_btn, colors['surface']))
-reboot_btn.bind("<Leave>", lambda e: on_leave(e, reboot_btn))
-
-# 3. Log Out Button
-logout_btn = tk.Button(btn_frame, text="Log Out", bg=colors['surface'], fg=colors['blue'], activebackground=colors['blue'], activeforeground=colors['bg'], font=("JetBrains Mono", 12, "bold"), relief="flat", cursor="hand2", command=lambda: execute("logout"))
-logout_btn.pack(fill="x", padx=40, pady=5)
-logout_btn.bind("<Enter>", lambda e: on_enter(e, logout_btn, colors['surface']))
-logout_btn.bind("<Leave>", lambda e: on_leave(e, logout_btn))
-
-# Auto-close hooks 
 root.bind("<FocusOut>", lambda e: root.destroy())
-root.bind("<Escape>", lambda e: root.destroy())
-
+root.bind("<Escape>",   lambda e: root.destroy())
 root.focus_force()
 root.mainloop()

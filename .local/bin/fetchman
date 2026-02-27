@@ -1,25 +1,16 @@
 #!/bin/bash
-
-# Config
 IMAGE_DIR="$HOME/Pictures/fastfetch"
-CURRENT_IMAGE_LINK="$IMAGE_DIR/current_fetch.jpg"
+CURRENT_IMAGE="$IMAGE_DIR/current_fetch.jpg"
 ASCII_WIDTH=50
 GAP=4
 
-# Check if a specific image was passed, otherwise use the symlink
-if [ -n "$1" ] && [ -f "$1" ]; then
-    SELECTED_IMAGE="$1"
-else
-    SELECTED_IMAGE="$CURRENT_IMAGE_LINK"
-fi
+SELECTED="${1:-$CURRENT_IMAGE}"
 
-# If no image exists at all, just run fastfetch normally
-if [ ! -f "$SELECTED_IMAGE" ]; then
+if [ ! -f "$SELECTED" ]; then
     fastfetch
     exit 0
 fi
 
-# Your custom pipeline, automated
-chafa --symbols braille --colors 256 --size ${ASCII_WIDTH}x25 "$SELECTED_IMAGE" \
-| awk -v w=$ASCII_WIDTH -v g=$GAP '{ printf "%-*s%*s", w, $0, g, "" ; print "" }' \
-| paste -d "" - <(fastfetch --logo none)
+chafa --symbols braille --colors 256 --size "${ASCII_WIDTH}x25" "$SELECTED" \
+    | awk -v w=$ASCII_WIDTH -v g=$GAP '{ printf "%-*s%*s", w, $0, g, ""; print "" }' \
+    | paste -d "" - <(fastfetch --logo none)
