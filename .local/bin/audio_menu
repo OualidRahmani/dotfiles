@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+import tkinter as tk
+import subprocess
+import os
+import json
+
+THEME_JSON = os.path.expanduser("~/.config/qtile_theme.json")
+with open(THEME_JSON, "r") as f:
+    colors = json.load(f)
+
+def get_sinks():
+    try:
+        out = subprocess.check_output(["pactl", "list", "sinks"]).decode()
+    except Exception:
+        return {"Error finding devices": ""}
+    
+    sinks = {}
+    current_name = None
+    for line in out.split('\n'):
+        if "Name: " in line:
+            current_name = line.split("Name: ")[1].strip()
+        if "Description: " in line and current_name:
+            desc = line.split("Description: ")[1].strip()
+            # Truncate slightly longer now since window is wider
+            sinks[desc[:45] + ("..." if len(desc)>45 else "")] = current_name
+            current_name = None
+    return sinks
+
+def get_current_volume():
+    try:
+        out = subprocess.check_output(["pactl", "get-sink-volume", "@DEFAULT_SINK@"]).decode()
+        vol_str = out.split('%')[0].split('/')[-1].strip()
+        return int(vol_str)
+    except Exception:
+        return 50
+
+def set_sink(name):
+    if name:
+        subprocess.run(["pactl", "set-default-sink", name])
+    root.destroy()
+
+def set_volume(val):
+    subprocess.run(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{val}%"])
+
+def on_slider_move(val):
+    """Updates the custom label in real time as you drag"""
+    vol_label.config(text=f"{val}%")
+    set_volume(val)
+
+# --- UI Setup ---
+root = tk.Tk()
+root.title("AudioMenu")
+root.overrideredirect(True) 
+root.attributes('-topmost', True)
+root.configure(bg=colors['bg'], highlightbackground=colors['surface'], highlightthickness=2)
+
+# Widened the window to 420px, shifted left to 1420 (closer to your VOL text)
+w, h = 420, 320
+
+# Force Tkinter to update its internal state so it can grab the mouse position
+root.update_idletasks() 
+mouse_x = root.winfo_pointerx()
+screen_w = root.winfo_screenwidth()
+
+# Center the menu under the mouse, but prevent it from bleeding off the right edge of the screen
+pos_x = min(max(0, mouse_x - (w // 2)), screen_w - w - 10)
+
+# 40 is the Y-offset (height of your bar). Adjust if needed!
+root.geometry(f"{w}x{h}+{pos_x}+40")
+
+# --- Header Frame ---
+header_frame = tk.Frame(root, bg=colors['bg'])
+header_frame.pack(fill="x", padx=15, pady=(15, 10))
+
+tk.Label(header_frame, text="󰕾 Audio Control", fg=colors['blue'], bg=colors['bg'], 
+         font=("JetBrains Mono", 14, "bold")).pack(side="left")
+
+close_btn = tk.Button(header_frame, text="✕", bg=colors['bg'], fg=colors['red'], 
+                      activebackground=colors['red'], activeforeground=colors['bg'],
+                      font=("JetBrains Mono", 14, "bold"), borderwidth=0, 
+                      command=root.destroy)
+close_btn.pack(side="right")
+
+# --- Volume Slider Frame ---
+vol_frame = tk.Frame(root, bg=colors['bg'])
+vol_frame.pack(fill="x", padx=15, pady=5)
+
+# Custom Percentage Label
+vol_label = tk.Label(vol_frame, text=f"{get_current_volume()}%", fg=colors['fg'], 
+                     bg=colors['bg'], font=("JetBrains Mono", 10, "bold"), width=4, anchor="e")
+vol_label.pack(side="right")
+
+# Styled Slider (showvalue=0 hides the ugly default number)
+vol_slider = tk.Scale(vol_frame, from_=0, to=150, orient="horizontal", 
+                      bg=colors['bg'], fg=colors['blue'], troughcolor=colors['surface'], 
+                      highlightthickness=0, borderwidth=0, showvalue=0, command=on_slider_move)
+vol_slider.set(get_current_volume())
+vol_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+tk.Frame(root, bg=colors['surface'], height=2).pack(fill="x", padx=15, pady=10)
+
+# --- Scrollable Device List ---
+list_container = tk.Frame(root, bg=colors['bg'])
+list_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+
+canvas = tk.Canvas(list_container, bg=colors['bg'], highlightthickness=0)
+scrollbar = tk.Scrollbar(list_container, orient="vertical", command=canvas.yview)
+scrollable_frame = tk.Frame(canvas, bg=colors['bg'])
+
+scrollable_frame.bind(
+    "<Configure>",
+    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+)
+
+# Widened the internal canvas window to match the new UI
+canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=360)
+canvas.configure(yscrollcommand=scrollbar.set)
+
+canvas.pack(side="left", fill="both", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+
+sinks = get_sinks()
+for desc, name in sinks.items():
+    btn = tk.Button(scrollable_frame, text=desc, bg=colors['surface'], fg=colors['fg'], 
+                    activebackground=colors['blue'], activeforeground=colors['bg'],
+                    font=("JetBrains Mono", 9), borderwidth=0, pady=8,
+                    command=lambda n=name: set_sink(n))
+    btn.pack(fill="x", pady=4, padx=5)
+
+root.bind("<FocusOut>", lambda e: root.destroy())
+root.focus_force()
+
+root.mainloop()

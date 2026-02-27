@@ -1,0 +1,80 @@
+configuration {
+    modi: "drun,run";
+    show-icons: true;
+    font: "JetBrains Mono 12";
+    display-drun: "";
+    drun-display-format: "{name}";
+}
+
+@theme "/dev/null"
+@import "~/.config/rofi/colors.rasi"
+
+* {
+    /* Reset all elements to transparent and remove default padding */
+    background-color: transparent;
+    text-color: @fg;
+    margin: 0;
+    padding: 0;
+}
+
+window {
+    width: 500px;
+    background-color: @bg; /* Only the main window gets the solid background */
+    border: 2px;
+    border-color: @blue;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+inputbar {
+    children: [prompt, entry];
+    background-color: @surface;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 0 0 10px 0;
+}
+
+prompt {
+    text-color: @blue;
+    padding: 0 10px 0 0;
+}
+
+entry {
+    placeholder: "Search Apps...";
+    text-color: @fg;
+}
+
+listview {
+    lines: 6;
+    columns: 1;
+    scrollbar: false;
+    spacing: 4px; /* Gives a tiny bit of breathing room between items */
+}
+
+element {
+    padding: 10px;
+    border-radius: 6px;
+}
+
+/* This kills the ugly alternating row colors */
+element normal.normal, element alternate.normal {
+    background-color: transparent;
+    text-color: @fg;
+}
+
+element selected.normal, element selected.active {
+    background-color: @surface;
+    text-color: @blue;
+}
+
+element-text {
+    background-color: transparent;
+    text-color: inherit;
+    vertical-align: 0.5;
+}
+
+element-icon {
+    size: 24px;
+    padding: 0 10px 0 0;
+    background-color: transparent;
+}

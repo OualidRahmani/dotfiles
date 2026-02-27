@@ -1,0 +1,11 @@
+* {
+    bg: #2c0021;
+    fg: #cdd6f4;
+    surface: #799173;
+    blue: #89b4fa;
+    red: #f32451;
+    
+    background-color: @bg;
+    text-color: @fg;
+    border-color: @blue;
+}

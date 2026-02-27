@@ -6,16 +6,10 @@ import os
 import subprocess
 import time
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
-
 THEME_JSON        = os.path.expanduser("~/.config/qtile_theme.json")
 NVIM_LUA          = os.path.expanduser("~/.config/nvim/lua/qtile_theme.lua")
-ULAUNCHER_DIR     = os.path.expanduser("~/.config/ulauncher/user-themes/ouali-theme")
-ULAUNCHER_CSS     = os.path.join(ULAUNCHER_DIR, "theme.css")
-ULAUNCHER_MANIFEST = os.path.join(ULAUNCHER_DIR, "manifest.json")
+ROFI_COLORS       = os.path.expanduser("~/.config/rofi/colors.rasi")
 FASTFETCH_CONFIG  = os.path.expanduser("~/.config/fastfetch/config.jsonc")
-
-# ── Default colors (Catppuccin Mocha) ────────────────────────────────────────
 
 DEFAULTS = {
     "bg":      "#1e1e2e",
@@ -33,12 +27,10 @@ if os.path.exists(THEME_JSON):
     with open(THEME_JSON) as f:
         colors.update(json.load(f))
 
-# ── Apply ─────────────────────────────────────────────────────────────────────
-
 def apply_theme():
     _save_qtile()
     _save_neovim()
-    _save_ulauncher()
+    _save_rofi()
     _save_terminal()
     _save_fastfetch()
     _reload_services()
@@ -56,72 +48,17 @@ def _save_neovim():
             f.write(f'  {k} = "{v}",\n')
         f.write("}\n")
 
-def _save_ulauncher():
-    os.makedirs(ULAUNCHER_DIR, exist_ok=True)
-
-    manifest = {
-        "manifest_version": "1",
-        "name": "ouali-theme",
-        "display_name": "Ouali Dynamic Theme",
-        "extend_theme": "dark",
-        "css_file": "theme.css",
-        "css_file_gtk_3.20+": "theme.css",
-        "matched_text_hl_colors": {
-            "when_selected":     colors["green"],
-            "when_not_selected": colors["blue"],
-        },
-    }
-    with open(ULAUNCHER_MANIFEST, "w") as f:
-        json.dump(manifest, f, indent=4)
-
-    css = f"""
-window {{
-    border: none;
-    box-shadow: none;
-}}
-decoration {{
-    border: none;
-    box-shadow: none;
-    margin: 0;
-}}
-.app {{
-    background-color: {colors['bg']};
-    border: none;
-    border-radius: 12px;
-    padding: 8px;
-    box-shadow: none;
-}}
-.input {{
-    color: {colors['fg']};
-    background-color: {colors['bg']};
-    font-size: 18px;
-    border: 2px solid {colors['surface']};
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 8px;
-}}
-.input:focus {{
-    border-color: {colors['blue']};
-}}
-.result-item {{
-    padding: 8px;
-    border-radius: 8px;
-    color: {colors['fg']};
-}}
-.result-item.selected {{
-    background-color: {colors['surface']};
-    border-left: 4px solid {colors['blue']};
-}}
-.result-item .title {{
-    color: {colors['fg']};
-    font-weight: bold;
-}}
-.result-item .description {{
-    color: {colors['surface']};
-}}
-"""
-    with open(ULAUNCHER_CSS, "w") as f:
-        f.write(css)
+def _save_rofi():
+    os.makedirs(os.path.dirname(ROFI_COLORS), exist_ok=True)
+    content = f"""* {{
+    bg: {colors['bg']};
+    fg: {colors['fg']};
+    surface: {colors['surface']};
+    blue: {colors['blue']};
+    red: {colors['red']};
+}}"""
+    with open(ROFI_COLORS, "w") as f:
+        f.write(content)
 
 def _save_terminal():
     palette = ";".join([
@@ -157,25 +94,13 @@ def _save_fastfetch():
         json.dump(data, f, indent=4)
 
 def _reload_services():
-    subprocess.run(["pkill", "-f", "ulauncher"])
-    time.sleep(0.5)
-    subprocess.Popen(
-        ["ulauncher", "--hide-window"],
-        start_new_session=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
     subprocess.run(["qtile", "cmd-obj", "-o", "cmd", "-f", "reload_config"])
-
-# ── Color picker ──────────────────────────────────────────────────────────────
 
 def pick_color(key, button):
     result = colorchooser.askcolor(title=f"Choose {key}", initialcolor=colors[key])[1]
     if result:
         colors[key] = result
         button.config(bg=result)
-
-# ── GUI ───────────────────────────────────────────────────────────────────────
 
 root = tk.Tk()
 root.title("Theme Manager")
