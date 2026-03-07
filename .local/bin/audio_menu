@@ -131,6 +131,5 @@ for desc, name in sinks.items():
     btn.pack(fill="x", pady=4, padx=5)
 
 root.bind("<FocusOut>", lambda e: root.destroy())
-root.focus_force()
 
 root.mainloop()

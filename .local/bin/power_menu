@@ -83,5 +83,4 @@ for label, color, cmd in BUTTONS:
 
 root.bind("<FocusOut>", lambda e: root.destroy())
 root.bind("<Escape>",   lambda e: root.destroy())
-root.focus_force()
 root.mainloop()

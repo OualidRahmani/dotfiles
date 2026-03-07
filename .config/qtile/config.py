@@ -9,113 +9,93 @@ import psutil
 @hook.subscribe.startup_once
 def autostart():
     subprocess.Popen(["picom", "--config", os.path.expanduser("~/.config/picom.conf")])
-    subprocess.Popen(["dunst"]) # Starts the notification daemon
+    subprocess.run(["pkill", "-f", "xfwm4"])
+    subprocess.run(["pkill", "-f", "xfce4-keyboard-shortcuts"])
+    subprocess.Popen(["dunst"]) 
+    subprocess.Popen(["/usr/libexec/xdg-desktop-portal"])
+    subprocess.Popen(["/usr/libexec/xdg-desktop-portal-gtk"])
 
-
-# Helper to create the progress bar string
 def get_bar(percent, width=5):
     full = "█"
     empty = "░"
     filled_width = int(percent / 100 * width)
     return f"[{full * filled_width}{empty * (width - filled_width)}]"
 
+SYSMON = os.path.expanduser("~/.local/bin/sysmon")
+
 def get_gpu_usage():
     try:
-        usage = int(subprocess.check_output(['nvidia-smi', '--query-gpu=utilization.gpu', '--format=csv,noheader,nounits']).decode().strip())
-        return f"GPU {get_bar(usage)}"
+        return subprocess.check_output([SYSMON, "gpu"]).decode().strip()
     except Exception:
         return "GPU [Error]"
 
+def get_battery():
+    try:
+        return subprocess.check_output([SYSMON, "bat"]).decode().strip()
+    except Exception:
+        return "BAT --%"
+
 def get_cpu_usage():
     try:
-        return f"CPU {get_bar(psutil.cpu_percent())}"
+        return subprocess.check_output([SYSMON, "cpu"]).decode().strip()
     except Exception:
         return "CPU [Error]"
 
 def get_ram_usage():
     try:
-        return f"RAM {get_bar(psutil.virtual_memory().percent)}"
+        return subprocess.check_output([SYSMON, "ram"]).decode().strip()
     except Exception:
         return "RAM [Error]"
 
 def get_vol():
     try:
         out = subprocess.check_output(["pactl", "get-sink-volume", "@DEFAULT_SINK@"]).decode()
-        # Extracts the exact percentage, even if it's 150%
         return "VOL " + out.split('%')[0].split('/')[-1].strip() + "%"
     except Exception:
         return "VOL --%"
 
-def get_battery():
-    try:
-        # Read the raw capacity percentage
-        with open("/sys/class/power_supply/BAT0/capacity", "r") as f:
-            cap = f.read().strip()
-        # Read the charging status
-        with open("/sys/class/power_supply/BAT0/status", "r") as f:
-            status = f.read().strip()
-        
-        icon = "⚡" if status == "Charging" else "BAT"
-        return f"{icon} {cap}%"
-    except Exception:
-        return "BAT --%"
-
-# Function to launch the detail popup
 def open_details(module_type):
-    # This launches our custom Python script (Phase 2) with an argument
     subprocess.Popen([os.path.expanduser("~/.local/bin/sys_popup"), module_type])
 
-
-mod = "mod4"  # Windows/Super key
+mod = "mod4"  
 terminal = "xfce4-terminal"
 
-# Keybindings
 keys = [
-    # Lock Screen
     Key([mod, "control"], "l", lazy.spawn(os.path.expanduser("~/.local/bin/lock.sh"))),
 
-    # Window focus
     Key([mod], "Left", lazy.layout.left()),
     Key([mod], "Right", lazy.layout.right()),
     Key([mod], "Down", lazy.layout.down()),
     Key([mod], "Up", lazy.layout.up()),
 
-    # Move windows
     Key([mod, "shift"], "Left", lazy.layout.shuffle_left()),
     Key([mod, "shift"], "Right", lazy.layout.shuffle_right()),
     Key([mod, "shift"], "Down", lazy.layout.shuffle_down()),
     Key([mod, "shift"], "Up", lazy.layout.shuffle_up()),
 
-    # Resize windows
     Key([mod, "control"], "Left", lazy.layout.grow_left()),
     Key([mod, "control"], "Right", lazy.layout.grow_right()),
     Key([mod, "control"], "Down", lazy.layout.grow_down()),
     Key([mod, "control"], "Up", lazy.layout.grow_up()),
 
-    # Volume Controls with Notifications
     Key([], "XF86AudioRaiseVolume", lazy.spawn("bash -c 'pactl set-sink-volume @DEFAULT_SINK@ +5% && notify-send -t 1000 -h string:x-dunst-stack-tag:vol \"Volume\" \"Increased\"'")),
     Key([], "XF86AudioLowerVolume", lazy.spawn("bash -c 'pactl set-sink-volume @DEFAULT_SINK@ -5% && notify-send -t 1000 -h string:x-dunst-stack-tag:vol \"Volume\" \"Decreased\"'")),
     Key([], "XF86AudioMute", lazy.spawn("bash -c 'pactl set-sink-mute @DEFAULT_SINK@ toggle && notify-send -t 1000 -h string:x-dunst-stack-tag:vol \"Volume\" \"Toggled Mute\"'")),
 
-    # Media Controls with Notifications (Pulls song title via playerctl)
     Key([], "XF86AudioPlay", lazy.spawn("bash -c 'playerctl play-pause && sleep 0.1 && notify-send -t 2000 -h string:x-dunst-stack-tag:media \"Play/Pause\" \"$(playerctl metadata title)\"'")),
     Key([], "XF86AudioNext", lazy.spawn("bash -c 'playerctl next && sleep 0.1 && notify-send -t 2000 -h string:x-dunst-stack-tag:media \"Next Track\" \"$(playerctl metadata title)\"'")),
     Key([], "XF86AudioPrev", lazy.spawn("bash -c 'playerctl previous && sleep 0.1 && notify-send -t 2000 -h string:x-dunst-stack-tag:media \"Previous Track\" \"$(playerctl metadata title)\"'")),
 
-    # Layout / window controls 
     Key(["mod1"], "F4", lazy.window.kill()),
     Key([mod, "control"], "r", lazy.reload_config()),
     Key([mod, "control"], "q", lazy.shutdown()),
     Key(["mod1"], "Tab", lazy.layout.next()),
     Key([mod, "shift"], "f", lazy.window.toggle_floating()),
     Key([], "Print", lazy.spawn("flameshot gui")),
-        # Workspace navigation (skip empty)
     Key([mod], "Tab", lazy.screen.next_group(skip_empty=True)),
     Key([mod, "shift"], "Tab", lazy.screen.prev_group(skip_empty=True)),
-        # Layout control (moved from Super + Tab)
     Key([mod], "space", lazy.next_layout()),
 
-    # Apps
     Key([mod], "Return", lazy.spawn(terminal)),
     Key([mod], "r", lazy.spawncmd()),
     Key([mod], "b", lazy.spawn("brave-browser")),
@@ -123,16 +103,12 @@ keys = [
     Key([mod], "f", lazy.spawn("firefox")),
 ]
 
-# Workspaces
-
 def add_group(qtile):
     def cb(text):
         if text:
             qtile.add_group(text)
-            # Switch to it immediately
             qtile.groups_map[text].toscreen()
     
-    # This opens a small prompt at the top of the screen
     qtile.cmd_spawn_extension(extension.CommandSet(
         commands={
             "Create Workspace": "echo",
@@ -143,14 +119,13 @@ def add_group(qtile):
 
 def delete_group(qtile):
     group = qtile.current_group
-    if group.name not in "123456789": # Prevent deleting the main 9
+    if group.name not in "123456789": 
         qtile.del_group(group.name)
 
 keys.extend([
     Key([mod, "control"], "n", lazy.function(add_group), desc="Create new workspace"),
     Key([mod, "control"], "x", lazy.function(delete_group), desc="Delete current workspace"),
 ])
-
 
 groups = [Group(i) for i in "123456789"]
 
@@ -165,20 +140,17 @@ for i in groups:
             desc="Move focused window to group " + i.name),
     ])
 
-# Dynamic Theme Loading
 theme_file = os.path.expanduser("~/.config/qtile_theme.json")
 try:
     with open(theme_file, "r") as f:
         colors = json.load(f)
 except FileNotFoundError:
-    # Fallback if the GUI hasn't been run yet
     colors = {
         "bg": "#1e1e2e", "fg": "#cdd6f4", "surface": "#313244",
         "blue": "#89b4fa", "green": "#a6e3a1", "red": "#f38ba8",
         "yellow": "#f9e2af", "mauve": "#cba6f7",
     }
 
-# Layouts with gaps
 layout_theme = {
     "border_width": 3,
     "margin": 8,
@@ -189,15 +161,6 @@ layout_theme = {
 layouts = [
     layout.Columns(**layout_theme),
     layout.Max(**layout_theme),
-    layout.Floating(
-        border_width=3,
-        border_focus=colors["blue"],
-        border_normal=colors["surface"],
-        float_rules=[
-            *layout.Floating.default_float_rules,
-            Match(wm_class="xfce4-terminal"),
-        ],
-    ),
 ]
 
 floating_layout = layout.Floating(
@@ -210,14 +173,14 @@ floating_layout = layout.Floating(
     ]
 )
 
-# Bar / widgets
-widget_defaults = dict(
-    font="JetBrains Mono",
-    fontsize=13,
-    padding=6,
-    foreground=colors["fg"],
-    background=colors["bg"],
-)
+widget_defaults = {
+    'font': "JetBrains Mono",
+    'fontsize': 13,
+    'padding': 6,
+    'foreground': colors["fg"],
+    'background': colors["bg"],
+}
+
 extension_defaults = widget_defaults.copy()
 
 screens = [
@@ -231,37 +194,31 @@ screens = [
                     this_current_screen_border=colors["blue"],
                     urgent_border=colors["red"],
                     padding=6,
-                    visible_groups=None, # This ensures ALL groups (even new ones) show up
-                    hide_unused=True,    # This keeps it clean—dynamic groups only show if active
+                    visible_groups=None, 
+                    hide_unused=False,    
                 ),
                 widget.Prompt(),
                 widget.WindowName(foreground=colors["mauve"]),
                 widget.Spacer(),
 
-                # CPU Widget
-                widget.ThreadPoolText(
-                    text="CPU Loading...",
-                    poll=get_cpu_usage,
+                widget.GenPollText(
+                    func=get_cpu_usage,
                     update_interval=1,
                     mouse_callbacks={'Button1': lambda: open_details('cpu')},
                     foreground=colors['mauve'], 
                 ), 
                 widget.Sep(padding=10, foreground=colors["surface"]),
 
-                # RAM Widget
-                widget.ThreadPoolText(
-                    text="RAM Loading...",
-                    poll=get_ram_usage,
+                widget.GenPollText(
+                    func=get_ram_usage,
                     update_interval=1,
                     mouse_callbacks={'Button1': lambda: open_details('ram')},
                     foreground=colors['blue'],
                 ),
                 widget.Sep(padding=10, foreground=colors["surface"]),
 
-                # GPU Widget
-                widget.ThreadPoolText(
-                    text="GPU Loading...",
-                    poll=get_gpu_usage,
+                widget.GenPollText(
+                    func=get_gpu_usage,
                     update_interval=2,
                     mouse_callbacks={'Button1': lambda: open_details('gpu')},
                     foreground=colors['yellow'],
@@ -272,7 +229,6 @@ screens = [
                     func=get_vol,
                     update_interval=1,
                     foreground=colors['blue'],
-                    # The 'sleep 0.15' gives you time to release the mouse click, preventing the deadlock!
                     mouse_callbacks={'Button1': lambda: subprocess.Popen(["bash", "-c", f"sleep 0.15 && python3 {os.path.expanduser('~/.local/bin/audio_menu')}"])}
                 ),
 
@@ -295,7 +251,6 @@ screens = [
                 ),
                 widget.Sep(padding=10, foreground=colors["surface"]),
 
-                # Net Widget
                 widget.GenPollText(
                     func=lambda: "↑ ↓",
                     update_interval=1,
@@ -305,7 +260,7 @@ screens = [
                 widget.Sep(padding=10, foreground=colors["surface"]),
 
                 widget.TextBox(
-                    text="⏻", # Or use "PWR" if your font doesn't have the icon
+                    text="⏻", 
                     font="JetBrains Mono",
                     fontsize=18,
                     foreground=colors['red'],
@@ -320,14 +275,12 @@ screens = [
     ),
 ]
 
-# Mouse bindings
 mouse = [
     Drag([mod], "Button1", lazy.window.set_position_floating(), start=lazy.window.get_position()),
     Drag([mod], "Button3", lazy.window.set_size_floating(), start=lazy.window.get_size()),
     Click([mod], "Button2", lazy.window.bring_to_front()),
 ]
 
-# Misc
 dgroups_key_binder = None
 dgroups_app_rules: list = []
 follow_mouse_focus = False
@@ -343,7 +296,5 @@ wmname = "LG3D"
 
 @hook.subscribe.setgroup
 def group_changed():
-    # Get the name of the current group
     group_name = qtile.current_group.name
-    # Spawn the HUD
     subprocess.Popen([os.path.expanduser("~/.local/bin/ws_hud"), group_name])

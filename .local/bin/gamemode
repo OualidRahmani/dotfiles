@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+import os
+
+STATE_FILE = "/tmp/qtile_gamemode"
+
+if os.path.exists(STATE_FILE):
+    os.remove(STATE_FILE)
+    os.system('notify-send "Game Mode" "OFF - HUDs Enabled"')
+else:
+    with open(STATE_FILE, "w") as f:
+        f.write("ON")
+    os.system('notify-send "Game Mode" "ON - HUDs Disabled"')

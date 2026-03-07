@@ -4,6 +4,9 @@ import sys
 import os
 import json
 
+if os.path.exists("/tmp/qtile_gamemode"):
+    exit()
+
 # ── Theme ─────────────────────────────────────────────────────────────────────
 
 THEME_JSON = os.path.expanduser("~/.config/qtile_theme.json")
