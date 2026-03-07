@@ -1,51 +1,74 @@
 #!/bin/bash
-sleep 2
+sleep 0.5
 pkill -x xfdesktop 2>/dev/null
 
+PID_FILE="/tmp/wallpaper.pid"
+
 get_workspace() {
-    xdotool get_desktop
+    qtile cmd-obj -o root -f get_groups | python3 -c "
+import sys, json
+groups = json.load(sys.stdin)
+for name, info in groups.items():
+    if info.get('screen') is not None:
+        print(name)
+        break
+"
 }
 
 get_video_for_ws() {
-    local index=$(( $1 + 1 ))
-    ls "$HOME/Videos/current-wallpaper-${index}."* 2>/dev/null | head -n 1
+    ls "$HOME/Videos/current-wallpaper-${1}."* 2>/dev/null | head -n 1
+}
+
+kill_wallpaper() {
+    if [ -f "$PID_FILE" ]; then
+        old_pid=$(cat "$PID_FILE")
+        # Kill the entire process group so xwinwrap AND mpv both die
+        kill -- -"$old_pid" 2>/dev/null
+        rm -f "$PID_FILE"
+    fi
+    # Safety net in case PID file was missing
+    pkill -x xwinwrap 2>/dev/null
+    pkill -x mpv 2>/dev/null
 }
 
 launch_wallpaper() {
     local ws="$1"
     local VIDEO
-
     VIDEO=$(get_video_for_ws "$ws")
 
     # Fallback to workspace 1
     if [ ! -f "$VIDEO" ]; then
-        VIDEO=$(get_video_for_ws 0)
+        VIDEO=$(get_video_for_ws 1)
     fi
 
     if [ ! -f "$VIDEO" ]; then
-        echo "No wallpaper found for workspace $ws and no fallback." >&2
         return 1
     fi
 
-    pkill -x xwinwrap 2>/dev/null
-    sleep 0.2
+    kill_wallpaper
+    sleep 0.1
 
+    # Start in its own process group so we can kill the whole tree
     setsid xwinwrap -fs -fdt -ni -b -nf -un -ov -o 1.0 -- \
-        bash -c 'mpv \
+        bash -c 'nvrun mpv \
             --wid="$1" \
+            --input-ipc-server=/tmp/mpv-wallpaper.sock \
             --loop-file=inf \
-            --image-display-duration=inf \
             --no-audio \
             --vo=gpu \
             --hwdec=auto \
             --panscan=1.0 \
-            --scale=ewa_lanczossharp \
-            --cscale=ewa_lanczossharp \
+            --scale=bilinear \
+            --cscale=bilinear \
             --no-osc \
             --no-osd-bar \
             "$2"' _ WID "$VIDEO" >/tmp/wallpaper.log 2>&1 &
+
+    # Save the process group ID so we can kill it cleanly later
+    echo $! > "$PID_FILE"
 }
 
+# Initial launch
 current_ws=$(get_workspace)
 launch_wallpaper "$current_ws"
 last_ws="$current_ws"
@@ -56,5 +79,5 @@ while true; do
         launch_wallpaper "$new_ws"
         last_ws="$new_ws"
     fi
-    sleep 0.4
+    sleep 0.5
 done

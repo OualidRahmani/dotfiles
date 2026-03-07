@@ -22,25 +22,37 @@ CACHE_FILE     = VIDEOS_DIR / ".wallman_cache.json"
 
 # ── Wallpaper discovery ───────────────────────────────────────────────────────
 
-def get_videos():
+def _get_title_from_project(folder: Path) -> str | None:
+    """Return the wallpaper title from project.json, or None if it should be skipped."""
+    project = folder / "project.json"
+    if not project.exists():
+        return folder.name
+    try:
+        data = json.loads(project.read_text(encoding="utf-8"))
+        if data.get("type", "").lower() in SKIP_TYPES:
+            return None
+        return data.get("title", folder.name)
+    except Exception:
+        return folder.name
+
+def _find_media_file(folder: Path) -> Path | None:
+    """Return the first supported media file in a folder, or None."""
+    for file in folder.iterdir():
+        if file.suffix.lower() in SUPPORTED_EXTS:
+            return file
+    return None
+
+def get_videos() -> list:
     wallpapers = []
     for folder in WORKSHOP_DIR.iterdir():
         if not folder.is_dir():
             continue
-        title = folder.name
-        project = folder / "project.json"
-        if project.exists():
-            try:
-                data = json.loads(project.read_text(encoding="utf-8"))
-                title = data.get("title", folder.name)
-                if data.get("type", "").lower() in SKIP_TYPES:
-                    continue
-            except Exception:
-                pass
-        for file in folder.iterdir():
-            if file.suffix.lower() in SUPPORTED_EXTS:
-                wallpapers.append((title, file))
-                break
+        title = _get_title_from_project(folder)
+        if title is None:
+            continue
+        media = _find_media_file(folder)
+        if media:
+            wallpapers.append((title, media))
     return sorted(wallpapers, key=lambda x: x[0].lower())
 
 # ── Current assignment ────────────────────────────────────────────────────────
@@ -123,8 +135,8 @@ def upscale(video, workspace):
     else:
         model, scale_flag = "realesr-animevideov3-x4", "4"
 
-    tmp         = Path(tempfile.mkdtemp())
-    frames_dir  = tmp / "frames"
+    tmp          = Path(tempfile.mkdtemp())
+    frames_dir   = tmp / "frames"
     upscaled_dir = tmp / "upscaled"
     frames_dir.mkdir()
     upscaled_dir.mkdir()
@@ -223,9 +235,10 @@ def assign_to_fetch(image_path):
     os.symlink(image_path, target_link)
     print(f"Terminal image assigned: {image_path.name}")
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── Main helpers ──────────────────────────────────────────────────────────────
 
-def main():
+def _parse_args() -> int:
+    """Parse CLI args and return 0-based workspace index, or exit on error."""
     if len(sys.argv) == 2 and sys.argv[1] == "--status":
         show_status()
         sys.exit(0)
@@ -239,11 +252,40 @@ def main():
         workspace = int(sys.argv[1]) - 1
         if workspace < 0:
             raise ValueError
+        return workspace
     except ValueError:
         print("Workspace must be a positive integer.")
         sys.exit(1)
 
+def _prompt_choice(wallpapers: list) -> int:
+    """Prompt the user to pick a wallpaper index. Returns the chosen index."""
+    while True:
+        try:
+            choice = int(input("Select wallpaper number: "))
+            if choice == -1:
+                print("Exiting.")
+                sys.exit(0)
+            if 0 <= choice < len(wallpapers):
+                return choice
+            print(f"Enter 0–{len(wallpapers) - 1}, or -1 to exit.")
+        except ValueError:
+            print("Invalid input.")
+
+def _show_menu(workspace: int, wallpapers: list):
+    """Print the wallpaper selection menu."""
+    current = get_current_wallpaper(workspace)
+    print(f"\nWorkspace {workspace + 1} currently: {current or '(none)'}")
+    print("\nAvailable wallpapers:\n")
+    for i, (title, _) in enumerate(wallpapers):
+        print(f"  [{i}] {title}")
+    print("\n  [-1] Exit\n")
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    workspace  = _parse_args()
     wallpapers = get_videos()
+
     if not wallpapers:
         print("No video wallpapers found.")
         sys.exit(1)
@@ -251,26 +293,10 @@ def main():
     cache = load_cache()
 
     while True:
-        current = get_current_wallpaper(workspace)
-        print(f"\nWorkspace {workspace + 1} currently: {current or '(none)'}")
-        print("\nAvailable wallpapers:\n")
-        for i, (title, _) in enumerate(wallpapers):
-            print(f"  [{i}] {title}")
-        print("\n  [-1] Exit\n")
-
-        while True:
-            try:
-                choice = int(input("Select wallpaper number: "))
-                if choice == -1:
-                    print("Exiting.")
-                    sys.exit(0)
-                if 0 <= choice < len(wallpapers):
-                    break
-                print(f"Enter 0–{len(wallpapers) - 1}, or -1 to exit.")
-            except ValueError:
-                print("Invalid input.")
-
+        _show_menu(workspace, wallpapers)
+        choice   = _prompt_choice(wallpapers)
         selected = wallpapers[choice][1]
+
         print("\nPreviewing...")
         preview(selected)
 
@@ -278,6 +304,7 @@ def main():
             selected = upscale_with_cache(selected, workspace, cache)
             assign(selected, workspace)
             break
+
         print("\nGoing back...\n")
 
 
