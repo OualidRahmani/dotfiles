@@ -2,4 +2,4 @@
 
 picom --config ~/.config/picom.conf &
 dunst &
-~/.local/bin/restart-wallpaper &
+feh --bg-fill ~/wallpapers/* &
