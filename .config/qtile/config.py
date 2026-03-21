@@ -123,13 +123,6 @@ keys = [
     Key([mod, "shift"], "Tab",   lazy.screen.prev_group()),
     Key([mod], "space",          lazy.next_layout()),
 
-    # Wallpaper — Super+W start, Super+Shift+W kill
-    Key([mod], "w",
-        lazy.spawn(os.path.expanduser("~/.local/bin/workspace-wallpaper"))),
-    Key([mod, "shift"], "w",
-        lazy.spawn("pkill -x xwinwrap"),
-        lazy.spawn("pkill -x mpv")),
-
     # Apps
     Key([mod], "Return", lazy.spawn(terminal)),
     Key([mod], "r",      lazy.spawncmd()),
