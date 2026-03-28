@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Directory where you keep your wallpapers
+WALL_DIR="$HOME/Pictures/Wallpapers" 
+
+# Use rofi to select an image file
+selected=$(ls -1 "$WALL_DIR" | grep -iE '\.(jpg|jpeg|png)$' | rofi -dmenu -p "Select Wallpaper:" -theme-str 'window {width: 30%;}')
+
+# Exit if you press escape or don't select anything
+if [ -z "$selected" ]; then
+    exit 0
+fi
+
+WALL="$WALL_DIR/$selected"
+
+# 1. Set the background using feh
+feh --bg-fill "$WALL"
+
+# 2. Extract colors silently (-q) and don't change the terminal colors directly (-n)
+# We use -n because we want our theme_sync.py to handle the colors.
+/home/oualid/.local/bin/wal -i "$WALL" -q --saturate 0.7
+
+# 3. Translate the extracted colors to your Qtile theme
+/usr/bin/python3 /home/oualid/.local/bin/theme_sync.py
+
+# 4. Reload Qtile to apply the new JSON theme instantly
+qtile cmd-obj -o cmd -f reload_config
+
+# Optional: send a notification
+notify-send "Theme Updated" "Matched colors to $selected"
