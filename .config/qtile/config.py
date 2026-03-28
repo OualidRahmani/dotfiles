@@ -175,7 +175,7 @@ keys = [
     Key([mod], "Return", lazy.spawn(terminal)),
     Key([mod], "r", lazy.spawncmd()),
     Key([mod], "b", lazy.spawn("brave-browser")),
-    Key(["mod1"], "space", lazy.spawn("bash -c 'rofi -show drun'")),
+    Key(["mod1"], "space", lazy.spawn("bash -c 'rofi -show drun -theme ~/.cache/wal/colors-rofi-dark.rasi'")),
     Key([mod], "f", lazy.spawn("env MOZ_X11_EGL=1 firefox")),
 ]
 
@@ -188,7 +188,7 @@ def add_group(qtile):
     try:
         group_name = (
             subprocess.check_output(
-                'rofi -dmenu -p "New Workspace Name:" -theme-str "window {width: 20%;}"',
+                'rofi -dmenu -p "New Workspace Name:" -theme ~/.cache/wal/colors-rofi-dark.rasi -theme-str "window {width: 20%;}"',
                 shell=True,
             )
             .decode("utf-8")
@@ -217,7 +217,7 @@ def delete_group(qtile):
             [
                 "notify-send",
                 "Cannot Delete",
-                "Default workspaces 1–9 cannot be deleted.",
+                "Default workspaces 1-9 cannot be deleted.",
             ]
         )
         return
@@ -283,7 +283,7 @@ except FileNotFoundError:
     }
 
 layout_theme = {
-    "border_width": 3,
+    "border_width": 0,
     "margin": 8,
     "border_focus": colors["blue"],
     "border_normal": colors["surface"],
@@ -389,7 +389,7 @@ screens = [
             ],
             28,
             background=colors["bg"],
-            margin=[4, 8, 0, 8],
+            margin=[4, 8, 4, 8],
         ),
     ),
 ]

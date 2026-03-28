@@ -1,16 +1,1 @@
-#!/bin/bash
-IMAGE_DIR="$HOME/Pictures/fastfetch"
-CURRENT_IMAGE="$IMAGE_DIR/current_fetch.jpg"
-ASCII_WIDTH=50
-GAP=4
-
-SELECTED="${1:-$CURRENT_IMAGE}"
-
-if [ ! -f "$SELECTED" ]; then
-    fastfetch
-    exit 0
-fi
-
-chafa --symbols braille --colors 256 --size "${ASCII_WIDTH}x25" "$SELECTED" \
-    | awk -v w=$ASCII_WIDTH -v g=$GAP '{ printf "%-*s%*s", w, $0, g, ""; print "" }' \
-    | paste -d "" - <(fastfetch --logo none)
+/home/oualid/.local/src/shell_scripts/fetchman.sh
