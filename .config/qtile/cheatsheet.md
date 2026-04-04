@@ -1,36 +1,41 @@
-# Qtile Keybinds
+# oualid's Qtile Cheatsheet
 
-## Apps
+## Apps & Launchers
 | Keybind | Action |
 |---|---|
-| Super+Enter | Terminal |
-| Super+b | Brave browser |
-| Super+f | Firefox |
-| Alt+Space | Ulauncher |
-| Super+r | Run prompt |
+| Super + Return | Terminal |
+| Super + b | Brave Browser |
+| Super + f | Firefox |
+| Alt + Space | Rofi App Launcher |
+| Super + r | Qtile Run Prompt |
+| Super + w | Wallpaper Picker |
 
-## Windows
+## Window Management
 | Keybind | Action |
 |---|---|
-| Alt+F4 | Close window |
-| Super+w | Close window |
-| Super+Shift+f | Toggle floating |
-| Super+hjkl | Move focus |
-| Alt+Tab | Cycle windows |
-| Super+Shift+hjkl | Move window |
-| Super+Ctrl+hjkl | Resize window |
-| Super+drag | Move floating window |
-| Super+right click drag | Resize floating window |
-| Super+Tab | Switch layout |
+| Alt + F4 | Kill Window |
+| Super + Shift + f | Toggle Fullscreen (Minecraft) |
+| Super + g | Toggle Floating |
+| Super + hjkl | Move Focus |
+| Super + Shift + hjkl | Move Window Position |
+| Super + Ctrl + hjkl | Resize Window |
+| Super + Space | Cycle Layouts |
 
 ## Workspaces
 | Keybind | Action |
 |---|---|
-| Super+1-9 | Switch workspace |
-| Super+Shift+1-9 | Move window to workspace |
+| Super + 1-9 | Switch Workspace |
+| Super + Shift + 1-9 | Move Window to Workspace |
+| Super + Tab | Switch to Last Visited Workspace |
+| Super + Escape | Workspace Rofi Switcher |
+| Super + Ctrl + n | Create New Workspace |
+| Super + Ctrl + x | Delete Current Workspace |
 
 ## System
 | Keybind | Action |
 |---|---|
-| Super+Ctrl+r | Reload config |
-| Super+Ctrl+q | Quit Qtile |
+| Super + Ctrl + Shift + l | Cycle Language (FR, US, RU, ARA) |
+| Super + Ctrl + l | Lock Screen |
+| Super + Ctrl + r | Reload Config |
+| Super + Ctrl + q | Quit Qtile |
+| PrintScreen | Screenshot |

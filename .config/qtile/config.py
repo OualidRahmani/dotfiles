@@ -55,23 +55,24 @@ last_net_recv = psutil.net_io_counters().bytes_recv
 last_net_sent = psutil.net_io_counters().bytes_sent
 last_net_time = time.time()
 
+
 def get_net():
     global last_net_recv, last_net_sent, last_net_time
-    
+
     current_time = time.time()
     current_net = psutil.net_io_counters()
     interval = current_time - last_net_time
-    
+
     if interval <= 0:
         return "↓ 0K ↑ 0K"
-        
+
     down = (current_net.bytes_recv - last_net_recv) / interval / 1024
     up = (current_net.bytes_sent - last_net_sent) / interval / 1024
-    
+
     last_net_recv = current_net.bytes_recv
     last_net_sent = current_net.bytes_sent
     last_net_time = current_time
-    
+
     return f"↓ {down:.1f}K ↑ {up:.1f}K"
 
 
@@ -93,7 +94,56 @@ def open_details(module_type):
 # ─── Core Config ─────────────────────────────────────────────────────────────
 
 mod = "mod4"
-terminal = "xfce4-terminal --hide-menubar --hide-scrollbar" 
+
+# ─── Workspace History ────────────────────────────────────────────────────────
+
+# ─── Workspace History & Switcher ─────────────────────────────────────────────
+
+_group_history = []
+
+def go_to_last_group(qtile):
+    global _group_history
+    if len(_group_history) < 2:
+        return
+    # [0] is current, [1] is the one we were just on
+    last_group_name = _group_history[1]
+    if last_group_name in qtile.groups_map:
+        qtile.groups_map[last_group_name].toscreen()
+
+def workspace_switcher(qtile):
+    # 1. Prepare the list of workspaces
+    lines = []
+    for g in qtile.groups:
+        if g.name in "123456789" or len(g.windows) > 0:
+            prefix = "➜ " if g == qtile.current_group else "  "
+            suffix = " ●" if len(g.windows) > 0 else ""
+            lines.append(f"{prefix}{g.name}{suffix}")
+    
+    input_str = "\n".join(lines)
+    
+    # 2. Build a detached bash command
+    # Note: We use double braces {{ }} so python f-strings don't get confused by CSS syntax
+    bash_script = f"""
+    target=$(cat << 'EOF' | rofi -dmenu -p "Switch to" -theme ~/.cache/wal/colors-rofi-dark.rasi -theme-str 'window {{width: 15%;}} listview {{lines: 10;}}' -hover-select -me-select-entry '' -me-accept-entry MousePrimary
+{input_str}
+EOF
+    )
+    
+    # Clean the markers to get the raw group name
+    target=$(echo "$target" | sed 's/➜ //g' | sed 's/ ●//g' | xargs)
+    
+    # Send the command back to Qtile asynchronously
+    if [ -n "$target" ]; then
+        qtile cmd-obj -o group "$target" -f toscreen
+    fi
+    """
+    
+    # 3. Fire and forget! (Qtile doesn't freeze)
+    subprocess.Popen(["bash", "-c", bash_script])
+
+# 
+
+terminal = "xfce4-terminal --hide-menubar --hide-scrollbar"
 
 keys = [
     Key([mod, "control"], "l", lazy.spawn(os.path.expanduser("~/.local/bin/lock.sh"))),
@@ -109,6 +159,11 @@ keys = [
     Key([mod, "control"], "Right", lazy.layout.grow_right()),
     Key([mod, "control"], "Down", lazy.layout.grow_down()),
     Key([mod, "control"], "Up", lazy.layout.grow_up()),
+    
+    # Keyboard Layout Switcher (FR, US, RU, ARA)
+    Key([mod, "control", "shift"], "F2", 
+        lazy.spawn("layout-switcher"), 
+        desc="Cycle keyboard layouts"),
     # Volume
     Key(
         [],
@@ -164,18 +219,25 @@ keys = [
     Key([mod, "control"], "r", lazy.reload_config()),
     Key([mod, "control"], "q", lazy.shutdown()),
     Key(["mod1"], "Tab", lazy.layout.next()),
-    Key([mod, "shift"], "f", lazy.window.toggle_floating()),
+    Key([mod], "g", lazy.window.toggle_floating()),
     Key([], "Print", lazy.spawn("flameshot gui")),
-    Key([mod], "Tab", lazy.screen.next_group()),
-    Key([mod, "shift"], "Tab", lazy.screen.prev_group()),
+    Key([mod], "Tab", lazy.function(go_to_last_group)),
+    Key([mod], "Escape", lazy.function(workspace_switcher)),
     Key([mod], "space", lazy.next_layout()),
+    Key([mod, "shift"], "f", lazy.window.toggle_fullscreen(), desc="Toggle fullscreen"),
     # Dynamic Wallpaper Picker
     Key([mod], "w", lazy.spawn(os.path.expanduser("~/.local/bin/wall_picker"))),
     # Apps
     Key([mod], "Return", lazy.spawn(terminal)),
     Key([mod], "r", lazy.spawncmd()),
     Key([mod], "b", lazy.spawn("brave-browser")),
-    Key(["mod1"], "space", lazy.spawn("bash -c 'rofi -show drun -theme ~/.cache/wal/colors-rofi-dark.rasi'")),
+    Key(
+        ["mod1"],
+        "space",
+        lazy.spawn(
+            "bash -c 'rofi -show drun -theme ~/.cache/wal/colors-rofi-dark.rasi'"
+        ),
+    ),
     Key([mod], "f", lazy.spawn("env MOZ_X11_EGL=1 firefox")),
 ]
 
@@ -185,29 +247,28 @@ group_names = list("123456789")
 
 
 def add_group(qtile):
-    try:
-        group_name = (
-            subprocess.check_output(
-                'rofi -dmenu -p "New Workspace Name:" -theme ~/.cache/wal/colors-rofi-dark.rasi -theme-str "window {width: 20%;}"',
-                shell=True,
-            )
-            .decode("utf-8")
-            .strip()
-        )
-
-        if not group_name:
-            return
-
-        if group_name in qtile.groups_map:
-            subprocess.Popen(
-                ["notify-send", "Workspace Exists", f'"{group_name}" already exists.']
-            )
-            return
-
-        qtile.add_group(group_name)
-        qtile.groups_map[group_name].toscreen()
-    except subprocess.CalledProcessError:
-        pass
+    bash_script = """
+    # Ask Rofi for the name
+    group_name=$(rofi -dmenu -p "New Workspace Name:" -theme ~/.cache/wal/colors-rofi-dark.rasi -theme-str 'window {width: 20%;}')
+    group_name=$(echo "$group_name" | xargs)
+    
+    # Exit if you press escape or leave it blank
+    [ -z "$group_name" ] && exit 0
+    
+    # Check if the group already exists by querying Qtile
+    exists=$(qtile cmd-obj -o root -f items -a group | grep -c "'$group_name'")
+    
+    if [ "$exists" -gt 0 ]; then
+        notify-send "Workspace Exists" "\\"$group_name\\" already exists."
+    else
+        # Add the group and switch to it using Qtile IPC
+        qtile cmd-obj -o root -f addgroup -a "$group_name"
+        qtile cmd-obj -o group "$group_name" -f toscreen
+    fi
+    """
+    
+    # Fire and forget!
+    subprocess.Popen(["bash", "-c", bash_script])
 
 
 def delete_group(qtile):
@@ -230,7 +291,13 @@ def delete_group(qtile):
     qtile.del_group(group.name)
 
 
-groups = [Group(i) for i in group_names]
+groups = []
+for i in group_names:
+    if i == "9":
+        # Force Spotify to always spawn on workspace 9
+        groups.append(Group(i, matches=[Match(wm_class="spotify")]))
+    else:
+        groups.append(Group(i))
 
 
 @hook.subscribe.startup_complete
@@ -406,6 +473,7 @@ mouse = [
     ),
     Click([mod], "Button2", lazy.window.bring_to_front()),
 ]
+
 dgroups_key_binder = None
 dgroups_app_rules = []
 follow_mouse_focus = True
@@ -415,11 +483,25 @@ cursor_warp = False
 auto_fullscreen = True
 focus_on_window_activation = "focus"
 reconfigure_screens = True
-auto_minimize = True
+auto_minimize = False
 wmname = "LG3D"
-
 
 @hook.subscribe.setgroup
 def group_changed():
-    group_name = qtile.current_group.name
-    subprocess.Popen([os.path.expanduser("~/.local/bin/ws_hud"), group_name])
+    global _group_history
+    current_group = qtile.current_group.name
+    
+    # MRU Stack Logic for History
+    if not _group_history or _group_history[0] != current_group:
+        if current_group in _group_history:
+            _group_history.remove(current_group)
+        _group_history.insert(0, current_group)
+        
+        # Cap history at 20 entries
+        if len(_group_history) > 20:
+            _group_history.pop()
+
+    # Launch HUD (Only one call needed)
+    hud_path = os.path.expanduser("~/.local/bin/ws_hud")
+    if os.path.exists(hud_path):
+        subprocess.Popen([hud_path, current_group])

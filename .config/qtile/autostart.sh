@@ -2,4 +2,6 @@
 
 picom --config ~/.config/picom.conf &
 dunst -conf ~/.config/dunst/dunstrc &
-feh --bg-fill ~/wallpapers/* &
+randomize-wallpaper &
+setxkbmap us &
+~/.local/bin/lock.sh &
